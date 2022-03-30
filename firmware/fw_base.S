@@ -123,18 +123,18 @@ _wait_relocate_copy_done:
 	/* Relocate if load address != link address */
 _relocate:
 	lla	t0, _link_start
-	REG_L	t0, 0(t0)
+	REG_L	t0, 0(t0)		/*t0保存 起始链接地址*/
 	lla	t1, _link_end
-	REG_L	t1, 0(t1)
+	REG_L	t1, 0(t1)		/*t1保存 结束链接地址*/
 	lla	t2, _load_start
-	REG_L	t2, 0(t2)
-	sub	t3, t1, t0
-	add	t3, t3, t2
-	beq	t0, t2, _relocate_done
-	lla	t4, _relocate_done
-	sub	t4, t4, t2
-	add	t4, t4, t0
-	blt	t2, t0, _relocate_copy_to_upper
+	REG_L	t2, 0(t2)		/*t2保存 起始运行地址*/
+	sub	t3, t1, t0		/*t3保存 计算的firmware长度*/
+	add	t3, t3, t2		/*t3保存 计算的结束运行地址*/
+	beq	t0, t2, _relocate_done	/*比较 起始链接地址与起始运行地址，如果相等，则不需要relocate，进入_relocate_done位置*/
+	lla	t4, _relocate_done	/*确认需要relocate，t4 加载运行的_reloate_done地址*/
+	sub	t4, t4, t2		/*t4保存 _reloate_done的相对地址， 运行地址减运行首地址*/
+	add	t4, t4, t0		/*t4保存 _reloate_done的链接地址*/
+	blt	t2, t0, _relocate_copy_to_upper		/*运行地址是否小于链接地址*/
 _relocate_copy_to_lower:
 	ble	t1, t2, _relocate_copy_to_lower_loop
 	lla	t3, _relocate_lottery
