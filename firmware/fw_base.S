@@ -134,9 +134,9 @@ _relocate:
 	lla	t4, _relocate_done	/*确认需要relocate，t4 加载运行的_reloate_done地址*/
 	sub	t4, t4, t2		/*t4保存 _reloate_done的相对地址， 运行地址减运行首地址*/
 	add	t4, t4, t0		/*t4保存 _reloate_done的链接地址*/
-	blt	t2, t0, _relocate_copy_to_upper		/*运行地址是否小于链接地址*/
-_relocate_copy_to_lower:
-	ble	t1, t2, _relocate_copy_to_lower_loop
+	blt	t2, t0, _relocate_copy_to_upper		/*运行地址是否小于链接地址 ，如果是，需要把代码copy到链接地址，所以是copy to upper*/
+_relocate_copy_to_lower:				/*运行地址大与链接地址，需要把代码copy 低地址*/
+	ble	t1, t2, _relocate_copy_to_lower_loop	/*结束链接地址 小于 运行的起始地址，直接进行简单copy*/
 	lla	t3, _relocate_lottery
 	BRANGE	t2, t1, t3, _start_hang
 	lla	t3, _boot_status
