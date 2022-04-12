@@ -591,10 +591,10 @@ memcmp:
 
 .macro	TRAP_SAVE_AND_SETUP_SP_T0
 	/* Swap TP and MSCRATCH */
-	csrrw	tp, CSR_MSCRATCH, tp
+	csrrw	tp, CSR_MSCRATCH, tp			/*CSRRW rd, csr, rs1，csr的读写指令，可以原子的把csr值读到中间值t，再把rs1的值写到csr，在把t写到rd*/
 
 	/* Save T0 in scratch space */
-	REG_S	t0, SBI_SCRATCH_TMP0_OFFSET(tp)
+	REG_S	t0, SBI_SCRATCH_TMP0_OFFSET(tp)		/*保存寄存器t0，后面会使用t0寄存器*/
 
 	/*
 	 * Set T0 to appropriate exception stack
@@ -606,26 +606,33 @@ memcmp:
 	 * Came_From_M_Mode = -1   ==>    Exception_Stack = SP
 	 */
 	csrr	t0, CSR_MSTATUS
-	srl	t0, t0, MSTATUS_MPP_SHIFT
+	srl	t0, t0, MSTATUS_MPP_SHIFT		
 	and	t0, t0, PRV_M
-	slti	t0, t0, PRV_M
-	add	t0, t0, -1
-	xor	sp, sp, tp
-	and	t0, t0, sp
-	xor	sp, sp, tp
-	xor	t0, tp, t0
+	slti	t0, t0, PRV_M				/*set if less than immediate 指令，（slti rd，rs1，immediate；rs1 <immediate ,rd=1）意思是如果t0小于PRV_M就向t0写入1，否则写入0*/
+	add	t0, t0, -1				/*t0 + (-1),此时t0是-1 也就是全f，或者0，也就是全0*/
+	xor	sp, sp, tp				/*tp与sp异或，第一次异或*/
+	and	t0, t0, sp				/*与操作*/
+	xor	sp, sp, tp				/*第二次异或*/
+	xor	t0, tp, t0				/*第三次异或*/
+/*	上面这些操作，本质上是判断应该使用哪个栈，并且使用经量少的寄存器，sp代表沿用进入异常之前的栈，而tp代表使用特定的预设栈，而逻辑就是非M模式进入异常则使用原模式的栈，
+ *	而M模式进入则使用预设栈，这里面有一个运算逻辑，c = a ^ b; c ^ a会得到b，c ^ b会得到a,所以从第一次异或开始，tp的值始终是源操作寄存器，也就是tp一直没有发生变化。
+ *	再看sp，第一次异或与第二次异或sp回到原来的值，也没有发生变化，所以这些操作最终的结果就是t0等于sp或者等于tp，sp代表原模式下的栈地址，而tp代表预设栈地址。
+ *	此时回到csrr，先读取mstatus寄存器，获取MPP字段，判断进入之前的模式，如果之前模式是M，那么611行开始t0是0，612行t0是-1，614行与操作t0就等于sp，而此时sp经过了
+ *	第一次与操作此时为sp^tp，然后再616经过第三次与操作sp^tp^tp，这时t0就是sp；相反，如果之前不是M模式，611行t0就是1，612行t0就是0，614行t0与操作就是0，616行tp异或0
+ *	就会得到自己，此时t0就是tp。
+ */
 
 	/* Save original SP on exception stack */
-	REG_S	sp, (SBI_TRAP_REGS_OFFSET(sp) - SBI_TRAP_REGS_SIZE)(t0)
+	REG_S	sp, (SBI_TRAP_REGS_OFFSET(sp) - SBI_TRAP_REGS_SIZE)(t0)		/*将sp的值保存在trap reg的相应位置，此时t0还未移动，否则可以使用635行的保存位置*/
 
 	/* Set SP to exception stack and make room for trap registers */
-	add	sp, t0, -(SBI_TRAP_REGS_SIZE)
+	add	sp, t0, -(SBI_TRAP_REGS_SIZE)		/*入栈，修改sp，并且预留了trap reg的空间*/
 
 	/* Restore T0 from scratch space */
-	REG_L	t0, SBI_SCRATCH_TMP0_OFFSET(tp)
+	REG_L	t0, SBI_SCRATCH_TMP0_OFFSET(tp)		/*还原t0寄存器*/
 
 	/* Save T0 on stack */
-	REG_S	t0, SBI_TRAP_REGS_OFFSET(t0)(sp)
+	REG_S	t0, SBI_TRAP_REGS_OFFSET(t0)(sp)	/*将t0寄存器的值保存在trap reg的相应位置*/
 
 	/* Swap TP and MSCRATCH */
 	csrrw	tp, CSR_MSCRATCH, tp
