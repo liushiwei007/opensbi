@@ -594,7 +594,7 @@ memcmp:
 	csrrw	tp, CSR_MSCRATCH, tp			/*CSRRW rd, csr, rs1，csr的读写指令，可以原子的把csr值读到中间值t，再把rs1的值写到csr，在把t写到rd*/
 
 	/* Save T0 in scratch space */
-	REG_S	t0, SBI_SCRATCH_TMP0_OFFSET(tp)		/*保存寄存器t0，后面会使用t0寄存器*/
+	REG_S	t0, SBI_SCRATCH_TMP0_OFFSET(tp)		/*保存寄存器t0，后面会使用t0寄存器会修改原有的寄存器值*/
 
 	/*
 	 * Set T0 to appropriate exception stack
@@ -614,8 +614,8 @@ memcmp:
 	and	t0, t0, sp				/*与操作*/
 	xor	sp, sp, tp				/*第二次异或*/
 	xor	t0, tp, t0				/*第三次异或*/
-/*	上面这些操作，本质上是判断应该使用哪个栈，并且使用经量少的寄存器，sp代表沿用进入异常之前的栈，而tp代表使用特定的预设栈，而逻辑就是非M模式进入异常则使用原模式的栈，
- *	而M模式进入则使用预设栈，这里面有一个运算逻辑，c = a ^ b; c ^ a会得到b，c ^ b会得到a,所以从第一次异或开始，tp的值始终是源操作寄存器，也就是tp一直没有发生变化。
+/*	上面这些操作，本质上是判断应该使用哪个栈，并且使用经量少的寄存器，sp代表沿用进入异常之前的栈，而tp代表使用特定的预设栈，而逻辑就是非M模式进入异常则使用预设的栈，
+ *	而M模式进入则使用sp栈，这里面有一个运算逻辑，c = a ^ b; c ^ a会得到b，c ^ b会得到a,所以从第一次异或开始，tp的值始终是源操作寄存器，也就是tp一直没有发生变化。
  *	再看sp，第一次异或与第二次异或sp回到原来的值，也没有发生变化，所以这些操作最终的结果就是t0等于sp或者等于tp，sp代表原模式下的栈地址，而tp代表预设栈地址。
  *	此时回到csrr，先读取mstatus寄存器，获取MPP字段，判断进入之前的模式，如果之前模式是M，那么611行开始t0是0，612行t0是-1，614行与操作t0就等于sp，而此时sp经过了
  *	第一次与操作此时为sp^tp，然后再616经过第三次与操作sp^tp^tp，这时t0就是sp；相反，如果之前不是M模式，611行t0就是1，612行t0就是0，614行t0与操作就是0，616行tp异或0
@@ -635,7 +635,7 @@ memcmp:
 	REG_S	t0, SBI_TRAP_REGS_OFFSET(t0)(sp)	/*将t0寄存器的值保存在trap reg的相应位置*/
 
 	/* Swap TP and MSCRATCH */
-	csrrw	tp, CSR_MSCRATCH, tp
+	csrrw	tp, CSR_MSCRATCH, tp			/*进入宏第一条指令的反操作，还原tp与mscratch*/
 .endm
 
 .macro	TRAP_SAVE_MEPC_MSTATUS have_mstatush
