@@ -54,7 +54,9 @@ void spin_lock(spinlock_t *lock)
 
 	__asm__ __volatile__(
 		/* Atomically increment the next ticket. */
-		"	amoadd.w.aqrl	%0, %4, %3\n"		/*高16位+1，也就是next+1 ，表示持有这个锁*/
+		"	amoadd.w.aqrl	%0, %4, %3\n"		/*高16位+1，也就是next+1 ，表示持有这个锁，这里需要注意两点 */
+								/*1，%3=%4+%3是一个原则操作;也就是lock变量已经被修改了*/
+								/*2, %0保存的是%3之前的值，这也是为啥65行汇编是相等的原因*/
 
 		/* Did we get the lock? */
 		"	srli	%1, %0, %6\n"			/*立即数右移16位，也就是获取next，得到一个register 的next，其他spin lock可能会更新此变量 */
