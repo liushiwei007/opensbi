@@ -71,7 +71,7 @@ void spin_lock(spinlock_t *lock)
 		"2:"
 		: "=&r"(l0), "=&r"(tmp1), "=&r"(tmp2), "+A"(*lock)
 		: "r"(inc), "r"(mask), "I"(TICKET_SHIFT)
-		: "memory");
+		: "memory");					/*简单记录，排序自旋锁就是高位加1加锁，低位+1解锁*/
 }
 
 void spin_unlock(spinlock_t *lock)
